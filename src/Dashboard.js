@@ -1191,9 +1191,15 @@ function Dashboard() {
           <span className="footer-tagline">Trusted. Transparent. Professional.</span>
         </div>
         <div className="footer-social">
-          <a href="#" title="Add real link">f</a>
-          <a href="#" title="Add real link">in</a>
-          <a href="#" title="Add real link">◎</a>
+          <button type="button" className="your-class">
+  f
+</button>
+        <button type="button" className="your-class">
+  @
+</button>
+          <button type="button" className="your-class">
+  i
+</button>
         </div>
       </div>
     </div>
