@@ -1,0 +1,18 @@
+{
+  "name": "bhangdiya-portal",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    "FIREBASE_PROJECT_ID": "bhangdiya-portal",
+    "CLOUDINARY_CLOUD_NAME": "xxezxppo"
+  }
+  // Secrets are never stored here. Set them once with:
+  //   npx wrangler secret put CLOUDINARY_API_KEY
+  //   npx wrangler secret put CLOUDINARY_API_SECRET
+}

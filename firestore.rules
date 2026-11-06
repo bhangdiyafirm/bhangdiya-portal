@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function phone() {
+      return request.auth != null ? request.auth.token.phone_number : null;
+    }
+
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(phone()));
+    }
+
+    // Client profile, keyed by mobile number in +91XXXXXXXXXX form.
+    match /clients/{clientId} {
+      allow read: if isAdmin() || phone() == clientId;
+      allow write: if isAdmin();
+
+      // A disabled client can no longer see their files.
+      match /files/{fileId} {
+        allow read: if isAdmin() || (
+          phone() == clientId
+          && get(/databases/$(database)/documents/clients/$(clientId)).data.active == true
+        );
+        allow write: if isAdmin();
+      }
+    }
+
+    // Admins are added by hand in the Firebase console, never from the site.
+    match /admins/{adminId} {
+      allow read: if phone() == adminId;
+      allow write: if false;
+    }
+  }
+}
