@@ -4,7 +4,7 @@ import { FIRM } from "../firm";
 import { ContactList, EmptyState, Icon, Shell, Spinner } from "../components/Ui.jsx";
 import FileList from "../components/FileList.jsx";
 
-export default function ClientHome({ phone, profile }) {
+export default function ClientHome({ email, name, profile }) {
   const [files, setFiles] = useState(null);
   const [error, setError] = useState("");
   const [category, setCategory] = useState("ALL");
@@ -14,10 +14,10 @@ export default function ClientHome({ phone, profile }) {
 
   useEffect(() => {
     if (!active) return;
-    listFiles(phone)
+    listFiles(email)
       .then(setFiles)
       .catch(() => setError("We couldn't load your documents. Please refresh the page."));
-  }, [phone, active]);
+  }, [email, active]);
 
   const counts = useMemo(() => {
     const result = { ALL: files?.length ?? 0 };
@@ -37,10 +37,10 @@ export default function ClientHome({ phone, profile }) {
       f.name.toLowerCase().includes(search.trim().toLowerCase())
   );
 
-  const firstName = (profile?.name || "").split(" ")[0];
+  const firstName = (name || "").split(" ")[0];
 
   return (
-    <Shell phone={phone} name={profile?.name}>
+    <Shell email={email} name={name}>
       <section className="hero">
         <div>
           <p className="eyebrow">Client Portal</p>
@@ -108,7 +108,7 @@ export default function ClientHome({ phone, profile }) {
                   : "Try a different search, type or year."}
               </EmptyState>
             )}
-            {files && shown.length > 0 && <FileList clientId={phone} files={shown} />}
+            {files && shown.length > 0 && <FileList clientId={email} files={shown} />}
           </div>
 
           <aside className="card side">

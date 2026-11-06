@@ -40,20 +40,27 @@ async function readAsCaller(env, token, path) {
   return response.ok ? response.json() : null;
 }
 
-async function callerIsAdmin(env, token, phone) {
-  if (typeof phone !== "string" || !/^\+\d{10,15}$/.test(phone)) return false;
-  // Rules only let someone read the admin record for their own number.
-  return (await readAsCaller(env, token, `admins/${encodeURIComponent(phone)}`)) !== null;
+const EMAIL = /^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/;
+
+async function callerIsAdmin(env, token, email) {
+  if (typeof email !== "string" || !EMAIL.test(email)) return false;
+  // Rules only let someone read the admin record for their own email.
+  return (await readAsCaller(env, token, `admins/${encodeURIComponent(email)}`)) !== null;
+}
+
+// Cloudinary folder for a client, e.g. "rahul.sharma@gmail.com" -> "clients/rahul_sharma_gmail_com".
+export function folderFor(email) {
+  return `clients/${email.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
 }
 
 async function uploadSignature(env, token, body) {
-  if (!(await callerIsAdmin(env, token, body.phone))) return json({ error: "forbidden" }, 403);
-  if (typeof body.clientId !== "string" || !/^\+\d{10,15}$/.test(body.clientId)) {
+  if (!(await callerIsAdmin(env, token, body.email))) return json({ error: "forbidden" }, 403);
+  if (typeof body.clientId !== "string" || !EMAIL.test(body.clientId)) {
     return json({ error: "bad_request" }, 400);
   }
 
   const params = {
-    folder: `clients/${body.clientId.slice(1)}`,
+    folder: folderFor(body.clientId),
     timestamp: Math.floor(Date.now() / 1000),
     type: "private",
   };
@@ -93,7 +100,7 @@ async function fileUrl(env, token, body) {
 }
 
 async function deleteFile(env, token, body) {
-  if (!(await callerIsAdmin(env, token, body.phone))) return json({ error: "forbidden" }, 403);
+  if (!(await callerIsAdmin(env, token, body.email))) return json({ error: "forbidden" }, 403);
   if (typeof body.publicId !== "string" || !body.publicId.startsWith("clients/")) {
     return json({ error: "bad_request" }, 400);
   }
@@ -123,7 +130,15 @@ const ROUTES = {
 
 export default {
   async fetch(request, env) {
-    const { pathname } = new URL(request.url);
+    const url = new URL(request.url);
+    const { pathname } = url;
+
+    // Google sign-in helper pages, served from our own address (see src/firebase.js).
+    if (pathname.startsWith("/__/auth/") || pathname === "/__/firebase/init.json") {
+      const target = `https://${env.FIREBASE_PROJECT_ID}.firebaseapp.com${pathname}${url.search}`;
+      return fetch(new Request(target, request));
+    }
+
     const route = ROUTES[pathname];
 
     if (!route) {

@@ -34,6 +34,12 @@ export function financialYears(count = 8, today = new Date()) {
   });
 }
 
+// Returns the email in lower case, or null if it doesn't look like an email address.
+export function normalizeEmail(input) {
+  const email = String(input).trim().toLowerCase();
+  return /^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/.test(email) ? email : null;
+}
+
 // Accepts "98901 88300", "+91 9890188300", "09890188300" and returns "+919890188300".
 export function toE164(input) {
   let digits = String(input).replace(/\D/g, "");
@@ -62,11 +68,11 @@ export function formatDate(value) {
 
 // ---- Who is signed in ----------------------------------------------------
 
-export async function loadSession(phone) {
-  const admin = await getDoc(doc(db, "admins", phone));
+export async function loadSession(email) {
+  const admin = await getDoc(doc(db, "admins", email));
   if (admin.exists()) return { role: "admin", profile: admin.data() };
 
-  const client = await getDoc(doc(db, "clients", phone));
+  const client = await getDoc(doc(db, "clients", email));
   if (client.exists()) return { role: "client", profile: client.data() };
 
   return { role: "unregistered", profile: null };
@@ -81,18 +87,23 @@ export async function listClients() {
     .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 }
 
-export async function createClient(phone, name) {
-  const ref = doc(db, "clients", phone);
-  if ((await getDoc(ref)).exists()) throw new Error("A client with this mobile number already exists.");
-  await setDoc(ref, { name: name.trim(), active: true, createdAt: serverTimestamp() });
+export async function createClient({ email, name, mobile }) {
+  const ref = doc(db, "clients", email);
+  if ((await getDoc(ref)).exists()) throw new Error("A client with this Gmail address already exists.");
+  await setDoc(ref, {
+    name: name.trim(),
+    mobile: mobile || null,
+    active: true,
+    createdAt: serverTimestamp(),
+  });
 }
 
-export function setClientActive(phone, active) {
-  return updateDoc(doc(db, "clients", phone), { active });
+export function setClientActive(email, active) {
+  return updateDoc(doc(db, "clients", email), { active });
 }
 
-export function renameClient(phone, name) {
-  return updateDoc(doc(db, "clients", phone), { name: name.trim() });
+export function renameClient(email, name) {
+  return updateDoc(doc(db, "clients", email), { name: name.trim() });
 }
 
 // ---- Files -----------------------------------------------------------------
@@ -155,10 +166,10 @@ function sendWithProgress(url, form, onProgress) {
   });
 }
 
-export async function uploadFile({ adminPhone, clientId, file, category, fy, onProgress }) {
+export async function uploadFile({ adminEmail, clientId, file, category, fy, onProgress }) {
   if (file.size > MAX_FILE_BYTES) throw new Error(`${file.name} is larger than 10 MB.`);
 
-  const sig = await callServer("/api/upload-signature", { phone: adminPhone, clientId });
+  const sig = await callServer("/api/upload-signature", { email: adminEmail, clientId });
   const form = new FormData();
   form.append("file", file);
   form.append("api_key", sig.apiKey);
@@ -175,11 +186,11 @@ export async function uploadFile({ adminPhone, clientId, file, category, fy, onP
     size: uploaded.bytes ?? file.size,
     publicId: uploaded.public_id,
     uploadedAt: serverTimestamp(),
-    uploadedBy: adminPhone,
+    uploadedBy: adminEmail,
   });
 }
 
-export async function deleteFile({ adminPhone, clientId, file }) {
-  await callServer("/api/delete-file", { phone: adminPhone, publicId: file.publicId });
+export async function deleteFile({ adminEmail, clientId, file }) {
+  await callServer("/api/delete-file", { email: adminEmail, publicId: file.publicId });
   await deleteDoc(doc(db, "clients", clientId, "files", file.id));
 }

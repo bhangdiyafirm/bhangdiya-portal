@@ -2,24 +2,29 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function phone() {
-      return request.auth != null ? request.auth.token.phone_number : null;
+    // Only verified Google accounts count. The email is always stored in lower case.
+    function email() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true
+        ? request.auth.token.email.lower()
+        : null;
     }
 
     function isAdmin() {
-      return request.auth != null
-        && exists(/databases/$(database)/documents/admins/$(phone()));
+      return email() != null
+        && exists(/databases/$(database)/documents/admins/$(email()));
     }
 
-    // Client profile, keyed by mobile number in +91XXXXXXXXXX form.
+    // Client profile, keyed by the client's Google (Gmail) address.
     match /clients/{clientId} {
-      allow read: if isAdmin() || phone() == clientId;
+      allow read: if isAdmin() || (email() != null && email() == clientId);
       allow write: if isAdmin();
 
-      // A disabled client can no longer see their files.
+      // A paused client can no longer see their files.
       match /files/{fileId} {
         allow read: if isAdmin() || (
-          phone() == clientId
+          email() != null && email() == clientId
           && get(/databases/$(database)/documents/clients/$(clientId)).data.active == true
         );
         allow write: if isAdmin();
@@ -28,7 +33,7 @@ service cloud.firestore {
 
     // Admins are added by hand in the Firebase console, never from the site.
     match /admins/{adminId} {
-      allow read: if phone() == adminId;
+      allow read: if email() != null && email() == adminId;
       allow write: if false;
     }
   }

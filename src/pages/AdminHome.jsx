@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { createClient, formatPhone, listClients, toE164 } from "../data";
+import { createClient, formatPhone, listClients, normalizeEmail, toE164 } from "../data";
 import { EmptyState, Icon, Shell, Spinner } from "../components/Ui.jsx";
 import ClientManage from "./ClientManage.jsx";
 
-export default function AdminHome({ phone, profile }) {
+export default function AdminHome({ email, name }) {
   const [clients, setClients] = useState(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -21,9 +21,9 @@ export default function AdminHome({ phone, profile }) {
 
   if (selected) {
     return (
-      <Shell phone={phone} name={profile?.name} badge="Admin">
+      <Shell email={email} name={name} badge="Admin">
         <ClientManage
-          adminPhone={phone}
+          adminEmail={email}
           client={selected}
           onBack={() => {
             setSelected(null);
@@ -37,12 +37,15 @@ export default function AdminHome({ phone, profile }) {
   const q = search.trim().toLowerCase();
   const digits = q.replace(/\D/g, "");
   const shown = (clients || []).filter(
-    (c) => (c.name || "").toLowerCase().includes(q) || (digits && c.id.includes(digits))
+    (c) =>
+      (c.name || "").toLowerCase().includes(q) ||
+      c.id.includes(q) ||
+      (digits.length >= 3 && (c.mobile || "").includes(digits))
   );
   const activeCount = (clients || []).filter((c) => c.active !== false).length;
 
   return (
-    <Shell phone={phone} name={profile?.name} badge="Admin">
+    <Shell email={email} name={name} badge="Admin">
       <section className="hero hero-row">
         <div>
           <p className="eyebrow">Admin</p>
@@ -67,7 +70,7 @@ export default function AdminHome({ phone, profile }) {
             <Icon name="search" size={16} />
             <input
               type="search"
-              placeholder="Search by name or mobile"
+              placeholder="Search by name, Gmail or mobile"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               aria-label="Search clients"
@@ -102,7 +105,7 @@ export default function AdminHome({ phone, profile }) {
                   <span className="avatar">{(c.name || "?").charAt(0).toUpperCase()}</span>
                   <span className="client-main">
                     <span className="client-name">{c.name || "Unnamed client"}</span>
-                    <span className="client-phone">{formatPhone(c.id)}</span>
+                    <span className="client-phone">{c.id}{c.mobile ? ` · ${formatPhone(c.mobile)}` : ""}</span>
                   </span>
                   <span className={c.active === false ? "chip chip-off" : "chip chip-on"}>
                     {c.active === false ? "Paused" : "Active"}
@@ -122,19 +125,22 @@ export default function AdminHome({ phone, profile }) {
 
 function AddClient({ onDone }) {
   const [name, setName] = useState("");
+  const [gmail, setGmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   async function submit(event) {
     event.preventDefault();
-    const phone = toE164(mobile);
+    const email = normalizeEmail(gmail);
+    const phone = mobile.trim() ? toE164(mobile) : null;
     if (!name.trim()) return setError("Please enter the client's name.");
-    if (!phone) return setError("Please enter a valid 10-digit Indian mobile number.");
+    if (!email) return setError("Please enter the client's Google (Gmail) address.");
+    if (mobile.trim() && !phone) return setError("The mobile number doesn't look right.");
     setBusy(true);
     setError("");
     try {
-      await createClient(phone, name);
+      await createClient({ email, name, mobile: phone });
       onDone();
     } catch (err) {
       setError(err.message || "Could not add the client.");
@@ -151,8 +157,21 @@ function AddClient({ onDone }) {
         <input id="new-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
       </div>
       <div className="field">
+        <label className="field-label" htmlFor="new-gmail">
+          Google (Gmail) address
+        </label>
+        <input
+          id="new-gmail"
+          type="email"
+          autoCapitalize="none"
+          placeholder="name@gmail.com"
+          value={gmail}
+          onChange={(e) => setGmail(e.target.value)}
+        />
+      </div>
+      <div className="field">
         <label className="field-label" htmlFor="new-mobile">
-          Mobile number
+          Mobile (optional, for contact)
         </label>
         <div className="phone-field">
           <span className="phone-prefix">+91</span>
@@ -170,7 +189,9 @@ function AddClient({ onDone }) {
       </button>
       {error && <p className="alert full">{error}</p>}
       <p className="muted full small">
-        The client signs in with this mobile number. No password is needed.
+
+        The client signs in with “Continue with Google” using exactly this address. No password is
+        needed.
       </p>
     </form>
   );

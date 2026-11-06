@@ -1,7 +1,6 @@
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import { FIRM } from "../firm";
-import { formatPhone } from "../data";
 
 const paths = {
   file: "M7 3h7l5 5v12a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm7 0v5h5M9 13h6M9 17h6",
@@ -78,7 +77,7 @@ export function ContactList() {
   );
 }
 
-export function Shell({ phone, name, badge, children }) {
+export function Shell({ email, name, badge, children }) {
   return (
     <div className="shell">
       <header className="topbar">
@@ -96,7 +95,7 @@ export function Shell({ phone, name, badge, children }) {
           <div className="topbar-user">
             <div className="who">
               <span className="who-name">{name || "Welcome"}</span>
-              <span className="who-phone">{formatPhone(phone)}</span>
+              <span className="who-phone">{email}</span>
             </div>
             <button className="btn btn-ghost" onClick={() => signOut(auth)}>
               <Icon name="logout" size={16} />

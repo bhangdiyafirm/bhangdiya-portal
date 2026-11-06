@@ -250,3 +250,13 @@ select { cursor: pointer; }
   .spinner { animation-duration: 2s; }
   * { transition: none !important; }
 }
+
+/* ---------- Google sign-in ---------- */
+.btn-google { min-height: 52px; background: #fff; border-color: #cfd6e3; color: var(--ink); font-size: 15px; gap: 12px; }
+.btn-google:hover:not(:disabled) { background: #f7f8fb; border-color: #b9c2d3; }
+.login-points { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 8px; font-size: 14px; color: var(--muted); }
+.login-points li { display: flex; align-items: center; gap: 8px; }
+.login-points svg { color: var(--ok); flex: none; }
+.inline-form { grid-template-columns: 1fr 1fr 1fr auto; }
+@media (max-width: 900px) { .inline-form { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 640px) { .inline-form { grid-template-columns: 1fr; } }

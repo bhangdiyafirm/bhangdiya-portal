@@ -21,12 +21,12 @@ async function put(path, data) {
   if (!response.ok) throw new Error(`${path}: ${response.status} ${await response.text()}`);
 }
 
-const admin = encodeURIComponent("+919999999901");
-const client = encodeURIComponent("+919999999902");
+const admin = encodeURIComponent("sample.admin@example.com");
+const client = encodeURIComponent("sample.client@example.com");
 
 await put(`admins/${admin}`, { role: "admin", name: "Sample Admin" });
-await put(`clients/${client}`, { name: "Sample Client", active: true });
-await put(`clients/${encodeURIComponent("+919999999903")}`, { name: "Second Sample Client", active: true });
+await put(`clients/${client}`, { name: "Sample Client", mobile: "+919999999902", active: true });
+await put(`clients/${encodeURIComponent("second.client@example.com")}`, { name: "Second Sample Client", active: true });
 
 const files = [
   ["f1", "GST Return July.pdf", "GST", "FY 2026-27", 248000],
@@ -46,4 +46,4 @@ for (const [id, name, category, fy, size] of files) {
   });
 }
 
-console.log("Sample data added. Admin: 9999999901  Client: 9999999902");
+console.log("Sample data added. Sign in as sample.admin@example.com or sample.client@example.com");

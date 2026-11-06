@@ -13,7 +13,7 @@ import {
 import { EmptyState, Icon, Spinner } from "../components/Ui.jsx";
 import FileList from "../components/FileList.jsx";
 
-export default function ClientManage({ adminPhone, client, onBack }) {
+export default function ClientManage({ adminEmail, client, onBack }) {
   const [info, setInfo] = useState(client);
   const [files, setFiles] = useState(null);
   const [error, setError] = useState("");
@@ -56,7 +56,7 @@ export default function ClientManage({ adminPhone, client, onBack }) {
   async function remove(file) {
     if (!window.confirm(`Delete “${file.name}”? This cannot be undone.`)) return;
     try {
-      await deleteFile({ adminPhone, clientId: info.id, file });
+      await deleteFile({ adminEmail, clientId: info.id, file });
       setFiles((list) => list.filter((f) => f.id !== file.id));
     } catch (err) {
       setError(err.message || "Could not delete the file.");
@@ -75,7 +75,8 @@ export default function ClientManage({ adminPhone, client, onBack }) {
           <div>
             <h1>{info.name}</h1>
             <p className="muted">
-              {formatPhone(info.id)}
+              {info.id}
+              {info.mobile && ` · ${formatPhone(info.mobile)}`}
               <span className={active ? "chip chip-on" : "chip chip-off"}>
                 {active ? "Active" : "Paused"}
               </span>
@@ -104,13 +105,13 @@ export default function ClientManage({ adminPhone, client, onBack }) {
             <FileList clientId={info.id} files={files} onDelete={remove} />
           )}
         </div>
-        <UploadPanel adminPhone={adminPhone} clientId={info.id} onUploaded={load} />
+        <UploadPanel adminEmail={adminEmail} clientId={info.id} onUploaded={load} />
       </div>
     </>
   );
 }
 
-function UploadPanel({ adminPhone, clientId, onUploaded }) {
+function UploadPanel({ adminEmail, clientId, onUploaded }) {
   const years = financialYears();
   const [category, setCategory] = useState("GST");
   const [fy, setFy] = useState(years[0]);
@@ -139,7 +140,7 @@ function UploadPanel({ adminPhone, clientId, onUploaded }) {
       for (const file of picked) {
         setProgress({ name: file.name, index: done + 1, total: picked.length, pct: 0 });
         await uploadFile({
-          adminPhone,
+          adminEmail,
           clientId,
           file,
           category,

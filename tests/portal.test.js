@@ -10,12 +10,20 @@ import { deleteDoc, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 import worker, { signCloudinary } from "../worker/index.js";
 
 const PROJECT = "demo-bhangdiya";
-const ADMIN = "+919000000001";
-const CLIENT_A = "+919000000002";
-const CLIENT_B = "+919000000003";
+const ADMIN = "office.admin@gmail.com";
+const CLIENT_A = "client.a@gmail.com";
+const CLIENT_B = "client.b@gmail.com";
+
+const uid = (email) => email.toLowerCase().replace(/[^a-z0-9]/g, "");
+const googleClaims = (email) => ({
+  email,
+  email_verified: true,
+  firebase: { sign_in_provider: "google.com" },
+});
 
 let env;
-const as = (phone) => env.authenticatedContext(phone.slice(1), { phone_number: phone }).firestore();
+const as = (email, claims = googleClaims(email)) =>
+  env.authenticatedContext(uid(email), claims).firestore();
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
@@ -31,9 +39,9 @@ beforeEach(async () => {
     const db = ctx.firestore();
     await setDoc(doc(db, "admins", ADMIN), { role: "admin" });
     await setDoc(doc(db, "clients", CLIENT_A), { name: "A", active: true });
-    await setDoc(doc(db, "clients", CLIENT_A, "files", "f1"), { name: "a.pdf", publicId: "clients/9/a.pdf" });
+    await setDoc(doc(db, "clients", CLIENT_A, "files", "f1"), { name: "a.pdf", publicId: "clients/a/a.pdf" });
     await setDoc(doc(db, "clients", CLIENT_B), { name: "B", active: false });
-    await setDoc(doc(db, "clients", CLIENT_B, "files", "f2"), { name: "b.pdf", publicId: "clients/9/b.pdf" });
+    await setDoc(doc(db, "clients", CLIENT_B, "files", "f2"), { name: "b.pdf", publicId: "clients/b/b.pdf" });
   });
 });
 
@@ -50,10 +58,27 @@ describe("database rules", () => {
     await assertSucceeds(getDoc(doc(db, "clients", CLIENT_A, "files", "f1")));
   });
 
+  it("matches the email whatever its capital letters", async () => {
+    const db = as(CLIENT_A, googleClaims("Client.A@Gmail.com"));
+    await assertSucceeds(getDoc(doc(db, "clients", CLIENT_A, "files", "f1")));
+  });
+
   it("stops one client reading another client", async () => {
     const db = as(CLIENT_A);
     await assertFails(getDoc(doc(db, "clients", CLIENT_B)));
     await assertFails(getDoc(doc(db, "clients", CLIENT_B, "files", "f2")));
+  });
+
+  it("ignores accounts that are not verified Google sign-ins", async () => {
+    const unverified = as(CLIENT_A, { ...googleClaims(CLIENT_A), email_verified: false });
+    await assertFails(getDoc(doc(unverified, "clients", CLIENT_A)));
+
+    const passwordAccount = as(CLIENT_A, {
+      email: CLIENT_A,
+      email_verified: true,
+      firebase: { sign_in_provider: "password" },
+    });
+    await assertFails(getDoc(doc(passwordAccount, "clients", CLIENT_A, "files", "f1")));
   });
 
   it("stops clients changing anything", async () => {
@@ -63,14 +88,14 @@ describe("database rules", () => {
     await assertFails(deleteDoc(doc(db, "clients", CLIENT_A, "files", "f1")));
   });
 
-  it("hides files from a disabled client", async () => {
+  it("hides files from a paused client", async () => {
     await assertFails(getDoc(doc(as(CLIENT_B), "clients", CLIENT_B, "files", "f2")));
   });
 
   it("lets admins manage clients and files", async () => {
     const db = as(ADMIN);
     await assertSucceeds(getDoc(doc(db, "clients", CLIENT_B)));
-    await assertSucceeds(setDoc(doc(db, "clients", "+919000000004"), { name: "New", active: true }));
+    await assertSucceeds(setDoc(doc(db, "clients", "new.client@gmail.com"), { name: "New", active: true }));
     await assertSucceeds(deleteDoc(doc(db, "clients", CLIENT_A, "files", "f1")));
   });
 
@@ -90,28 +115,29 @@ describe("file server", () => {
     CLOUDINARY_API_SECRET: "testsecret",
   };
 
-  // The emulator accepts unsigned tokens, so these stand in for real logins.
-  const tokenFor = (phone) => {
+  // The emulator accepts unsigned tokens, so these stand in for real Google logins.
+  const tokenFor = (email) => {
     const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
     const now = Math.floor(Date.now() / 1000);
     return `${encode({ alg: "none", typ: "JWT" })}.${encode({
       iss: `https://securetoken.google.com/${PROJECT}`,
       aud: PROJECT,
-      sub: phone.slice(1),
-      user_id: phone.slice(1),
-      phone_number: phone,
+      sub: uid(email),
+      user_id: uid(email),
+      email,
+      email_verified: true,
       iat: now,
       exp: now + 3600,
       auth_time: now,
-      firebase: { sign_in_provider: "phone", identities: { phone: [phone] } },
+      firebase: { sign_in_provider: "google.com", identities: { email: [email] } },
     })}.`;
   };
 
-  const call = (path, body, phone) =>
+  const call = (path, body, email) =>
     worker.fetch(
       new Request(`https://portal.test${path}`, {
         method: "POST",
-        headers: phone ? { authorization: `Bearer ${tokenFor(phone)}` } : {},
+        headers: email ? { authorization: `Bearer ${tokenFor(email)}` } : {},
         body: JSON.stringify(body),
       }),
       workerEnv
@@ -133,7 +159,7 @@ describe("file server", () => {
     const response = await call("/api/file-url", { clientId: CLIENT_A, fileId: "f1" }, CLIENT_A);
     expect(response.status).toBe(200);
     const url = new URL((await response.json()).url);
-    expect(url.searchParams.get("public_id")).toBe("clients/9/a.pdf");
+    expect(url.searchParams.get("public_id")).toBe("clients/a/a.pdf");
     expect(url.searchParams.get("type")).toBe("private");
     expect(url.searchParams.get("signature")).toMatch(/^[0-9a-f]{40}$/);
     expect(Number(url.searchParams.get("expires_at"))).toBeLessThanOrEqual(Date.now() / 1000 + 300);
@@ -150,21 +176,23 @@ describe("file server", () => {
   });
 
   it("gives upload permission to admins only", async () => {
-    const asAdmin = await call("/api/upload-signature", { phone: ADMIN, clientId: CLIENT_A }, ADMIN);
+    const asAdmin = await call("/api/upload-signature", { email: ADMIN, clientId: CLIENT_A }, ADMIN);
     expect(asAdmin.status).toBe(200);
-    expect((await asAdmin.json()).type).toBe("private");
+    const sig = await asAdmin.json();
+    expect(sig.type).toBe("private");
+    expect(sig.folder).toBe("clients/client_a_gmail_com");
 
-    const asClient = await call("/api/upload-signature", { phone: CLIENT_A, clientId: CLIENT_A }, CLIENT_A);
+    const asClient = await call("/api/upload-signature", { email: CLIENT_A, clientId: CLIENT_A }, CLIENT_A);
     expect(asClient.status).toBe(403);
 
-    const pretending = await call("/api/upload-signature", { phone: ADMIN, clientId: CLIENT_A }, CLIENT_A);
+    const pretending = await call("/api/upload-signature", { email: ADMIN, clientId: CLIENT_A }, CLIENT_A);
     expect(pretending.status).toBe(403);
   });
 
   it("refuses file deletion by a client", async () => {
     const response = await call(
       "/api/delete-file",
-      { phone: CLIENT_A, publicId: "clients/9/a.pdf" },
+      { email: CLIENT_A, publicId: "clients/a/a.pdf" },
       CLIENT_A
     );
     expect(response.status).toBe(403);

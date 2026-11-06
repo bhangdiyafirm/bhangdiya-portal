@@ -15,17 +15,20 @@ export default function App() {
     () =>
       onAuthStateChanged(auth, async (user) => {
         if (!user) return setState({ status: "signedOut" });
-        const phone = user.phoneNumber;
-        if (!phone) {
+        const usedGoogle = user.providerData.some((p) => p.providerId === "google.com");
+        if (!usedGoogle || !user.email) {
+          // Leftover login of another kind (e.g. the old mobile-number test): start fresh.
           await signOut(auth);
           return setState({ status: "signedOut" });
         }
+        const email = user.email.toLowerCase();
+        const person = { email, displayName: user.displayName || "", photo: user.photoURL || "" };
         setState({ status: "loading" });
         try {
-          const session = await loadSession(phone);
-          setState({ status: "ready", phone, ...session });
+          const session = await loadSession(email);
+          setState({ status: "ready", ...person, ...session });
         } catch {
-          setState({ status: "error", phone });
+          setState({ status: "error", ...person });
         }
       }),
     []
@@ -39,8 +42,12 @@ export default function App() {
     );
   }
   if (state.status === "signedOut") return <Login />;
-  if (state.status === "error") return <Unregistered phone={state.phone} failed />;
-  if (state.role === "admin") return <AdminHome phone={state.phone} profile={state.profile} />;
-  if (state.role === "client") return <ClientHome phone={state.phone} profile={state.profile} />;
-  return <Unregistered phone={state.phone} />;
+  if (state.status === "error") return <Unregistered email={state.email} failed />;
+
+  const name = state.profile?.name || state.displayName;
+  if (state.role === "admin") return <AdminHome email={state.email} name={name} />;
+  if (state.role === "client") {
+    return <ClientHome email={state.email} name={name} profile={state.profile} />;
+  }
+  return <Unregistered email={state.email} />;
 }
