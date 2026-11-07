@@ -14,11 +14,22 @@ data and documents are all on free online services. A computer is only needed to
 | Google sign-in + client list | Firebase project `bhangdiya-portal` | console.firebase.google.com |
 | Document files | Cloudinary `xxezxppo` | console.cloudinary.com |
 
-## Working on it from any computer
-1. Install [Node.js](https://nodejs.org) (LTS) and [Git](https://git-scm.com).
-2. `git clone https://github.com/bhangdiyafirm/bhangdiya-portal.git`
-3. `cd bhangdiya-portal` then `npm install`
-4. Open the folder in Claude Code. `CLAUDE.md` tells it everything about the project.
+## Starting on a new computer
+1. Install the **Claude desktop app** (claude.ai/download) and sign in with your Claude account.
+2. Install [Git](https://git-scm.com) and [Node.js](https://nodejs.org) (the LTS version).
+3. In the Claude app's **Code** tab, start a new session, choose a folder (for example `C:\`),
+   and send this message:
+
+   > Clone https://github.com/bhangdiyafirm/bhangdiya-portal into C:\bhangdiya-portal,
+   > run npm install, then read CLAUDE.md and tell me where the portal project stands.
+
+4. From then on, open `C:\bhangdiya-portal` in the Code tab and talk to Claude as before.
+   `CLAUDE.md` holds everything Claude needs to know; the old chat itself does not move over.
+
+To publish changes from the new computer, Claude will ask you to log in once to Cloudflare
+(`npx wrangler login`), and to Firebase only if the database rules change.
+
+No computer at all? **claude.ai/code** in a browser can work on the GitHub project directly.
 
 ## First-time setup (once)
 1. **Cloudflare**: create a free account, then `npx wrangler login` and `npm run deploy:site`.

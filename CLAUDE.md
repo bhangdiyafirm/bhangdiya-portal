@@ -39,7 +39,25 @@ Google-account sign-in instead. Don't bring SMS back unless they agree to pay.
 - `npm run deploy:rules` — publish `firestore.rules` (needs `npx firebase login`)
 - `npm run deploy:site` — build and publish to Cloudflare (needs `npx wrangler login`)
 
-## Status
-- Rebuild lives on branch `rebuild-foundation`. Not published yet.
-- Old Create React App version is on `main`, deployed on Vercel at cabhangdiyabrothers.vercel.app
-  (test data only). Publishing the new rules will stop the old site working; that's accepted.
+## Status (2026-11-07)
+- **Live** at https://bhangdiya-portal.bhangdiya.workers.dev (Cloudflare account subdomain `bhangdiya`),
+  deployed from `main` with `npm run deploy:site`. Owner confirmed sign-in and the admin screens work.
+- Firebase: Google provider on; new rules published (via the console); authorised domain and the
+  Google Cloud OAuth client ("Web client (auto created by Google Service)") include the live address
+  and `/__/auth/handler`. Phone and Email/Password providers are still on (harmless: rules ignore them).
+- Admins in Firestore: cricketxplore2409@gmail.com and panclients@gmail.com (owner's choice).
+  bhangdiyafirm@gmail.com was removed at the owner's request.
+- The new version is on `main` (the old Create React App version is in git history before that).
+  Vercel still watches `main` and will fail to build it; that's harmless, and the Vercel project
+  can be disconnected or deleted whenever the owner likes.
+- Cloudinary keys were added in the Cloudflare dashboard as **plain-text variables**, not secrets.
+  Before any `wrangler deploy`, make sure they've been changed to type Secret, or the deploy will
+  delete them and break uploads (check with `npx wrangler secret list`).
+- Still to do:
+  1. Owner changes the two Cloudinary variables in Cloudflare from Text to **Secret**.
+  2. Delete Cloudinary's old unsigned `bhangdiya_portal` upload preset (the console had signed out).
+  3. Optional: make the GitHub repo private; switch off Phone and Email/Password sign-in in Firebase.
+  4. Owner may add a custom domain later (free/cheap); it then needs adding to Firebase authorised
+     domains and to the Google Cloud OAuth client, like the workers.dev address.
+- History: the first version of this rebuild was planned and built in one long Claude Code session
+  on the owner's old PC (Nov 2026). That chat is not available on other PCs; this file replaces it.
